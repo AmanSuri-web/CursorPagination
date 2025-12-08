@@ -136,27 +136,35 @@ public class Main {
                 }
             }
 
-            // 2. Sort by transactionTime DESC, id DESC
-            //  Repo is sorted so don't need this.
+            //sorting not required
+//            filtered.sort(
+//                    Comparator.comparing(Transaction::getCreatedAt).reversed()
+//                            .thenComparing(Transaction::getId).reversed()
+//            );
 
             // 3. Decode cursor and apply seek-based pagination
+            List<Transaction> cursorFilter = new ArrayList<>();
             if(req.getCursor() != null) {
                 Pair<Long, Long> cursor = CursorUtil.decode(req.getCursor());
-                filtered = filtered.stream()
-                        .filter(tx -> isBeforeCursor(tx, cursor))
-                        .collect(Collectors.toList());
-
+                for(Transaction tx : filtered){
+                    if(isBeforeCursor(tx, cursor)){
+                        cursorFilter.add(tx);
+                    }
+                }
+            }else{
+                cursorFilter = filtered;
             }
 
             // 4. Pagination
             long limit = req.getLimit() == null ? DEFAULT_PAGE_SIZE : req.getLimit();
 
-            boolean hasNext = filtered.size() > limit;
+            boolean hasNext = cursorFilter.size() > limit;
 
             // page = first `limit` items
-            List<Transaction> page = filtered.stream()
-                    .limit(limit)
-                    .collect(Collectors.toList());
+            List<Transaction> page = new ArrayList<>();
+            for(int i = 0; i< limit;i++){
+                page.add(cursorFilter.get(i));
+            }
 
             FetchTxnResponse resp = new FetchTxnResponse();
             resp.setTransactionList(page);
@@ -184,7 +192,7 @@ public class Main {
                 case "id" -> ComparatorUtils.compareLong(tx.getId(), (Long) f.getValue(), f.getOp());
                 case "time" ->
                         ComparatorUtils.compareLong(tx.getTime(), (Long) f.getValue(), f.getOp());
-                case "userId" -> ComparatorUtils.compareLong((Long) f.getValue(),tx.getUserId(), f.getOp());
+                case "userId" -> ComparatorUtils.compareLong(tx.getUserId(), (Long) f.getValue(), f.getOp());
                 case "payee" -> f.getValue().equals(tx.getPayee());
                 case "status" -> f.getValue().equals(tx.getStatus());
                 case "amount" -> ComparatorUtils.compareLong(tx.getAmount(), (long) f.getValue(), f.getOp());
