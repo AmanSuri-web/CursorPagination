@@ -39,7 +39,7 @@ public class CursorTransactionSvcImpl implements TransactionService {
                     .collect(Collectors.toList());
         }
 
-        // 4. Pagination using limit+1 technique
+        // 4. Pagination
         long limit = req.getLimit() == null ? 20 : req.getLimit();
 
         boolean hasNext = filtered.size() > limit;
@@ -55,7 +55,6 @@ public class CursorTransactionSvcImpl implements TransactionService {
 
         // 5. NEXT cursor setter
         if (hasNext) {
-            // limit-th index is the (limit+1)-th item
             Transaction lastItem = page.get(page.size() -1);
             resp.setNextCursor(CursorUtil.encode(lastItem.getTransactionTime(), lastItem.getId()));
         }
