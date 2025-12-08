@@ -2,6 +2,11 @@ package org.example;
 
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.example.Status.PAID;
 
 public class Main {
     public static void main(String[] args) {
@@ -10,12 +15,13 @@ public class Main {
 
         FetchTxnRequest fetchTxnRequest = new FetchTxnRequest();
         fetchTxnRequest.setLimit(2L);
-        fetchTxnRequest.setStatus(Status.PAID);
-        fetchTxnRequest.setPayer("aman");
-        //fetchTxnRequest.setPayee("aman");
-        fetchTxnRequest.setCreatedAtGreater(LocalDateTime.MIN);
+        List<Filter> filterList = new ArrayList<>();
+        filterList.add(new Filter().setOp(Operator.EQ).setValue(PAID).setField("status"));
+        filterList.add(new Filter().setOp(Operator.EQ).setValue("aman").setField("payer"));
+        filterList.add(new Filter().setOp(Operator.GT).setValue(LocalDateTime.MIN.toEpochSecond(ZoneOffset.UTC)).setField("transactionTime"));
+        fetchTxnRequest.setSearchFilters(filterList);
 
-        fetchTxnRequest.setCursor("MjAyNS0xMi0wNVQxMDoyNnwz");
+        //fetchTxnRequest.setCursor("MjAyNS0xMi0wNVQxMDoyNnwz");
 
         FetchTxnResponse res = transactionService.getPaginatedListOfTransactions(fetchTxnRequest);
 

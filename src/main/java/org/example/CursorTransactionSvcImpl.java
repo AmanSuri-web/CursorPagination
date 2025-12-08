@@ -1,8 +1,10 @@
 package org.example;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import javafx.util.Pair;
 
@@ -22,7 +24,7 @@ public class CursorTransactionSvcImpl implements TransactionService {
 
         // 1. Apply filters
         List<Transaction> filtered = txns.stream()
-                .filter(tx -> applyFilters(tx, req))
+                .filter(tx -> matchesAllFilters(tx, req.getSearchFilters()))
                 .collect(Collectors.toList());
 
         // 2. Sort by transactionTime DESC, id DESC
@@ -62,22 +64,38 @@ public class CursorTransactionSvcImpl implements TransactionService {
         return resp;
     }
 
-    private boolean applyFilters(Transaction tx, FetchTxnRequest req) {
-        if (req.getStatus() != null && !req.getStatus().equals(tx.getStatus()))
-            return false;
-
-        if (req.getPayer() != null && !req.getPayer().equals(tx.getPayer()))
-            return false;
-
-        if (req.getPayee() != null && !req.getPayee().equals(tx.getPayee()))
-            return false;
-
-        if (req.getCreatedAtGreater() != null &&
-                tx.getCreatedAt().isBefore(req.getCreatedAtGreater()))
-            return false;
-
+    private boolean matchesAllFilters(Transaction tx, List<Filter> filters) {
+        for (Filter f : filters) {
+            if (!matches(tx, f)) return false;
+        }
         return true;
     }
+
+    private boolean matches(Transaction tx, Filter f) {
+
+        return switch (f.getField()) {
+            case "id" -> compareLong(tx.getId(), (Long) f.getValue(), f.getOp());
+            case "transactionTime" ->
+                    compareLong(tx.getTransactionTime().toEpochSecond(ZoneOffset.UTC), (Long) f.getValue(), f.getOp());
+            case "payer" -> f.getValue().equals(tx.getPayer());
+            case "payee" -> f.getValue().equals(tx.getPayee());
+            case "status" -> f.getValue().equals(tx.getStatus());
+            case "amount" -> compareLong(tx.getAmount(), (long) f.getValue(), f.getOp());
+            default -> throw new IllegalArgumentException("Unknown filter field: " + f.getField());
+        };
+    }
+
+    private boolean compareLong(long a, long b, Operator op) {
+        return switch (op) {
+            case EQ -> a == b;
+            case GT -> a > b;
+            case LT -> a < b;
+            case GTE -> a >= b;
+            case LTE -> a <= b;
+            default -> throw new IllegalArgumentException("Invalid operator: " + op);
+        };
+    }
+
 
     private boolean isAfterCursor(Transaction tx, Pair<LocalDateTime, Long> cursor) {
         LocalDateTime cursorTime = cursor.getKey();
