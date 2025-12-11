@@ -9,6 +9,7 @@ import lombok.ToString;
 import lombok.experimental.Accessors;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -87,17 +88,14 @@ public class Main {
 
     static class CursorUtil {
 
-        public static String encode(Long time, Long id) {
-            String raw = time + "|" + id;
-            return Base64.getEncoder().encodeToString(raw.getBytes());
+        public static String encode(Long t, Long id) {
+            return t + "-" + id;
         }
 
-        public static Pair<Long, Long> decode(String cursor) {
+        public static List<Long> decode(String cursor) {
             if (cursor == null) return null;
-
-            String decoded = new String(Base64.getDecoder().decode(cursor));
-            String[] parts = decoded.split("\\|");
-            return new Pair<>(Long.parseLong(parts[0]), Long.parseLong(parts[1]));
+            String[] parts = cursor.split("-");
+            return Arrays.asList(Long.parseLong(parts[0]), Long.parseLong(parts[1]));
         }
     }
 
@@ -145,7 +143,7 @@ public class Main {
             // 3. Decode cursor and apply seek-based pagination
             List<Transaction> cursorFilter = new ArrayList<>();
             if(req.getCursor() != null) {
-                Pair<Long, Long> cursor = CursorUtil.decode(req.getCursor());
+                List<Long> cursor = CursorUtil.decode(req.getCursor());
                 for(Transaction tx : filtered){
                     if(isBeforeCursor(tx, cursor)){
                         cursorFilter.add(tx);
@@ -202,9 +200,9 @@ public class Main {
 
 
 
-        private boolean isBeforeCursor(Transaction tx, Pair<Long, Long> cursor) {
-            Long cursorTime = cursor.getKey();
-            Long cursorId = cursor.getValue();
+        private boolean isBeforeCursor(Transaction tx, List<Long> cursor) {
+            Long cursorTime = cursor.get(0);
+            Long cursorId = cursor.get(1);
 
             // First compare timestamps
             if (tx.getTime() < cursorTime) return false;
@@ -229,7 +227,7 @@ public class Main {
         filterList.add(new Filter().setOp(Operator.GT).setValue(0L).setField("time"));
         fetchTxnRequest.setSearchFilters(filterList);
 
-        fetchTxnRequest.setCursor("M3wz");
+        fetchTxnRequest.setCursor("3-3");
 
         FetchTxnResponse res = transactionService.getPaginatedListOfTransactions(fetchTxnRequest);
 
